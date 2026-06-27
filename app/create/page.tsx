@@ -126,9 +126,9 @@ export default function App() {
                                     name="deskripsi"
                                     value={formData.deskripsi}
                                     onChange={handleInputChange}
-                                    rows="3"
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 focus:bg-white transition-all placeholder-slate-400 resize-none"
-                                    placeholder="Tulis pesan santai buat ngajak. Contoh: 'Kurang 2 orang nih buat patungan lapangan, skill bebas yang penting fun!'"
+                                    rows={3}
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700 resize-none"
+                                    placeholder="Tulis pesan santai buat ngajak. Contoh: Halo, cari temen buat nonton bareng nih, tiket udah aman di tribun utara..."
                                     required
                                 ></textarea>
                             </div>

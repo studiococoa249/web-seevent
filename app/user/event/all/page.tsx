@@ -69,7 +69,7 @@ export default function App() {
     const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
     const displayedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    const getStatusBadge = (status) => {
+    const getStatusBadge = (status: string) => {
         switch (status) {
             case 'aktif':
                 return <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">Mencari Teman</span>;
