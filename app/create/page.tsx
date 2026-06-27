@@ -24,7 +24,7 @@ export default function App() {
         { name: 'Lainnya', icon: 'fa-star' },
     ];
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -32,7 +32,7 @@ export default function App() {
     const incrementKuota = () => setFormData(prev => ({ ...prev, kuota: prev.kuota + 1 }));
     const decrementKuota = () => setFormData(prev => ({ ...prev, kuota: prev.kuota > 1 ? prev.kuota - 1 : 1 }));
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log('Form Submitted:', formData);
         // Logika submit ke backend nantinya di sini
