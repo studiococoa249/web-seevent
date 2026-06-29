@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/lib/toast-context';
+import { supabase } from '@/lib/supabase';
 
 interface Category {
     id: number;
@@ -13,6 +14,7 @@ interface Category {
 export default function App() {
     const { showToast } = useToast();
     const router = useRouter();
+    const hasShownToast = React.useRef(false);
 
     const [checkingAuth, setCheckingAuth] = useState(true);
     const [loadingCategories, setLoadingCategories] = useState(true);
@@ -45,6 +47,31 @@ export default function App() {
                 if (!authData.authenticated) {
                     router.push('/auth/login');
                     return;
+                }
+
+                // Check free post limits for non-membership users
+                if (authData.user?.membership === 'No') {
+                    const { data: settingData } = await supabase
+                        .from('setting')
+                        .select('max_post_free_membership')
+                        .limit(1)
+                        .single();
+
+                    const maxFree = settingData?.max_post_free_membership || 0;
+
+                    const { count } = await supabase
+                        .from('event')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('id_users', authData.user.id);
+
+                    if (count !== null && count >= maxFree) {
+                        if (!hasShownToast.current) {
+                            showToast(`Batas posting gratis (${maxFree} event) telah habis. Silakan berlangganan.`, 'error');
+                            hasShownToast.current = true;
+                        }
+                        router.push('/user/plan');
+                        return;
+                    }
                 }
 
                 setCheckingAuth(false);

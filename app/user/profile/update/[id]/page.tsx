@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useState, useEffect } from 'react';
+import React, { use, useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -30,6 +30,7 @@ export default function UpdateProfilePage({
     const [submitting, setSubmitting] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [uploadingBanner, setUploadingBanner] = useState(false);
+    const hasFetchedInitialData = useRef(false);
 
     const [form, setForm] = useState<ProfileForm>({
         namaLengkap: '',
@@ -43,6 +44,11 @@ export default function UpdateProfilePage({
 
     useEffect(() => {
         const fetchInitialData = async () => {
+            // Only run if we haven't fetched initial data yet
+            if (hasFetchedInitialData.current) return;
+            // #region debug-point D:useeffect-run
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"D",location:"app/user/profile/update/[id]/page.tsx:44",msg:"[DEBUG] useEffect fetchInitialData running!",data:{urlUserId,hasFetchedInitialData:hasFetchedInitialData.current},ts:Date.now()})}).catch(()=>{});
+            // #endregion
             try {
                 // 1. Verify user authentication
                 const authRes = await fetch('/api/auth/me');
@@ -75,6 +81,9 @@ export default function UpdateProfilePage({
 
                 if (profileError) throw profileError;
 
+                // #region debug-point D:setform-initial
+                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"D",location:"app/user/profile/update/[id]/page.tsx:78",msg:"[DEBUG] About to setForm initial data",data:{profileData,formBefore:form},ts:Date.now()})}).catch(()=>{});
+                // #endregion
                 setForm({
                     namaLengkap: authData.user.nama_lengkap || '',
                     bio: profileData?.bio || '',
@@ -84,7 +93,8 @@ export default function UpdateProfilePage({
                     tiktokUrl: profileData?.tiktok_url || '',
                     youtubeUrl: profileData?.youtube_url || ''
                 });
-
+                // Mark that we've fetched initial data
+                hasFetchedInitialData.current = true;
             } catch (err: unknown) {
                 console.error('Error fetching initial profile details:', err);
                 showToast('Gagal memuat detail profil.', 'error');
@@ -102,7 +112,10 @@ export default function UpdateProfilePage({
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner') => {
-        const file = e.target.files?.[0];
+    // #region debug-point A:upload-start
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"A",location:"app/user/profile/update/[id]/page.tsx:104",msg:"[DEBUG] handleFileUpload called",data:{type,fileName:e.target.files?.[0]?.name,fileSize:e.target.files?.[0]?.size},ts:Date.now()})}).catch(()=>{});
+    // #endregion
+    const file = e.target.files?.[0];
         if (!file) return;
 
         if (file.size > 5 * 1024 * 1024) {
@@ -129,11 +142,26 @@ export default function UpdateProfilePage({
             }
 
             const result = await res.json();
+            // #region debug-point A:upload-setform
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"A",location:"app/user/profile/update/[id]/page.tsx:134",msg:"[DEBUG] About to setForm",data:{type,result,formBefore:form},ts:Date.now()})}).catch(()=>{});
+            // #endregion
             if (type === 'avatar') {
-                setForm(prev => ({ ...prev, profileUrlImagekit: result.url }));
+                setForm(prev => {
+                    const newForm = { ...prev, profileUrlImagekit: result.url };
+                    // #region debug-point A:upload-setform-done
+                    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"A",location:"app/user/profile/update/[id]/page.tsx:136",msg:"[DEBUG] setForm done (avatar)",data:{newForm},ts:Date.now()})}).catch(()=>{});
+                    // #endregion
+                    return newForm;
+                });
                 showToast('Foto profil berhasil diunggah!', 'success');
             } else {
-                setForm(prev => ({ ...prev, bannerUrl: result.url }));
+                setForm(prev => {
+                    const newForm = { ...prev, bannerUrl: result.url };
+                    // #region debug-point A:upload-setform-done
+                    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"A",location:"app/user/profile/update/[id]/page.tsx:139",msg:"[DEBUG] setForm done (banner)",data:{newForm},ts:Date.now()})}).catch(()=>{});
+                    // #endregion
+                    return newForm;
+                });
                 showToast('Foto sampul berhasil diunggah!', 'success');
             }
         } catch (err: unknown) {
@@ -148,32 +176,63 @@ export default function UpdateProfilePage({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
+        
+        // #region debug-point B:submit-start
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:151",msg:"[DEBUG] handleSubmit called",data:{form},ts:Date.now()})}).catch(()=>{});
+        // #endregion
 
         try {
             // 1. Update users table (nama_lengkap)
+            // #region debug-point B:update-users
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:157",msg:"[DEBUG] Updating users table",data:{namaLengkap:form.namaLengkap,urlUserId},ts:Date.now()})}).catch(()=>{});
+            // #endregion
+            
             const { error: userError } = await supabase
                 .from('users')
                 .update({ nama_lengkap: form.namaLengkap })
                 .eq('id', urlUserId);
 
-            if (userError) throw userError;
+            if (userError) {
+                // #region debug-point B:user-error
+                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:162",msg:"[DEBUG] User update error",data:{userError},ts:Date.now()})}).catch(()=>{});
+                // #endregion
+                throw userError;
+            }
 
             // 2. Update profile table
+            // #region debug-point B:upsert-profile
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:165",msg:"[DEBUG] Upserting profile",data:{upsertData:{id_users:urlUserId,bio:form.bio,profile_url_imagekit:form.profileUrlImagekit,banner_url:form.bannerUrl,instagram_url:form.instagramUrl,tiktok_url:form.tiktokUrl,youtube_url:form.youtubeUrl}},ts:Date.now()})}).catch(()=>{});
+            // 2. Update profile table
+            // Convert empty strings to null
+            const upsertData = {
+                id_users: urlUserId,
+                bio: form.bio.trim() === "" ? null : form.bio,
+                profile_url_imagekit: form.profileUrlImagekit.trim() === "" ? null : form.profileUrlImagekit,
+                banner_url: form.bannerUrl.trim() === "" ? null : form.bannerUrl,
+                instagram_url: form.instagramUrl.trim() === "" ? null : form.instagramUrl,
+                tiktok_url: form.tiktokUrl.trim() === "" ? null : form.tiktokUrl,
+                youtube_url: form.youtubeUrl.trim() === "" ? null : form.youtubeUrl,
+                update_at: new Date().toISOString()
+            };
+            // #region debug-point B:upsert-data
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:165",msg:"[DEBUG] Prepared upsertData",data:{upsertData,form},ts:Date.now()})}).catch(()=>{});
+            // #endregion
             const { data: upsertResult, error: profileError } = await supabase
                 .from('profile')
-                .upsert({
-                    id_users: urlUserId,
-                    bio: form.bio || null,
-                    profile_url_imagekit: form.profileUrlImagekit || null,
-                    banner_url: form.bannerUrl || null,
-                    instagram_url: form.instagramUrl || null,
-                    tiktok_url: form.tiktokUrl || null,
-                    youtube_url: form.youtubeUrl || null,
-                    update_at: new Date().toISOString()
-                }, { onConflict: 'id_users' })
+                .upsert(upsertData, { onConflict: 'id_users' })
                 .select();
 
-            if (profileError) throw profileError;
+            if (profileError) {
+                // #region debug-point B:profile-error
+                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:179",msg:"[DEBUG] Profile upsert error",data:{profileError},ts:Date.now()})}).catch(()=>{});
+                // #endregion
+                throw profileError;
+            }
+            
+            // #region debug-point B:upsert-success
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:180",msg:"[DEBUG] Profile upsert succeeded",data:{upsertResult},ts:Date.now()})}).catch(()=>{});
+            // #endregion
+            
             console.log('[UpdateProfile] upsert result:', upsertResult);
 
             showToast('Profil berhasil diperbarui!', 'success');
@@ -181,6 +240,10 @@ export default function UpdateProfilePage({
             window.location.href = '/user/profile';
         } catch (err: unknown) {
             console.error('Error updating profile:', err);
+            // #region debug-point B:exception
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"B",location:"app/user/profile/update/[id]/page.tsx:186",msg:"[DEBUG] Exception caught",data:{err},ts:Date.now()})}).catch(()=>{});
+            // #endregion
+            
             const errMsg = err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan.';
             showToast('Gagal memperbarui profil: ' + errMsg, 'error');
         } finally {

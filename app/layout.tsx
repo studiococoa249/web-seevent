@@ -41,7 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
+    <html lang="id-ID">
+      <head>
+        <meta httpEquiv="Content-Language" content="id-ID" />
+        <meta name="language" content="Indonesian" />
+      </head>
       <body>
         <ToastProvider>
           {children}

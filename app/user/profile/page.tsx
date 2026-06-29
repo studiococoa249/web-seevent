@@ -37,6 +37,10 @@ export default function ProfilePage() {
 
     useEffect(() => {
         const fetchProfileData = async () => {
+            // #region debug-point C:profile-fetch-start
+            fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"C",location:"app/user/profile/page.tsx:39",msg:"[DEBUG] fetchProfileData called",ts:Date.now()})}).catch(()=>{});
+            // #endregion
+            
             try {
                 // 1. Check if user is authenticated
                 const authRes = await fetch('/api/auth/me');
@@ -45,6 +49,11 @@ export default function ProfilePage() {
                     return;
                 }
                 const authData = await authRes.json();
+                
+                // #region debug-point C:auth-data
+                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"C",location:"app/user/profile/page.tsx:47",msg:"[DEBUG] Got auth data",data:{authData},ts:Date.now()})}).catch(()=>{});
+                // #endregion
+                
                 if (!authData.authenticated || !authData.user) {
                     router.push('/auth/login');
                     return;
@@ -89,7 +98,11 @@ export default function ProfilePage() {
                     tiktok_url: authData.user.profile?.tiktok_url || null,
                     youtube_url: authData.user.profile?.youtube_url || null,
                 };
-
+                
+                // #region debug-point C:complete-profile
+                fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"profile-update-not-saving",runId:"pre",hypothesisId:"C",location:"app/user/profile/page.tsx:93",msg:"[DEBUG] Setting complete profile",data:{completeProfile},ts:Date.now()})}).catch(()=>{});
+                // #endregion
+                
                 setUserProfile(completeProfile);
 
             } catch (err: unknown) {

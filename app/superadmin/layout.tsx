@@ -33,6 +33,11 @@ export default function SuperadminLayout({
       icon: 'fa-solid fa-users',
     },
     {
+      name: 'Membership Plan',
+      href: '/superadmin/plan',
+      icon: 'fa-solid fa-id-card-clip',
+    },
+    {
       name: 'Kategori Event',
       href: '/superadmin/event/kategori',
       icon: 'fa-solid fa-tags',

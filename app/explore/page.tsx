@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function ExplorePage() {
+    const router = useRouter();
     const [activeCategory, setActiveCategory] = useState('Semua');
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState('grid'); // 'grid' atau 'list'
@@ -43,11 +46,20 @@ export default function ExplorePage() {
                             name
                         ),
                         users (
-                            nama_lengkap
+                            nama_lengkap,
+                            profile (
+                                profile_url_imagekit
+                            )
                         ),
                         event_participants (
                             id,
-                            status
+                            status,
+                            users (
+                                nama_lengkap,
+                                profile (
+                                    profile_url_imagekit
+                                )
+                            )
                         )
                     `)
                     .eq('status', 'Publish')
@@ -74,12 +86,13 @@ export default function ExplorePage() {
                         id: evt.id,
                         host: evt.users?.nama_lengkap || 'Penyelenggara',
                         hostAge: 20 + (index % 10),
-                        hostAvatar: `https://i.pravatar.cc/150?img=${(index % 70) + 1}`,
+                        hostAvatar: evt.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${(index % 70) + 1}`,
                         eventName: evt.title,
                         location: evt.location,
                         date: dateStr,
                         needs: needsCount,
                         current: confirmedCount,
+                        participants: evt.event_participants?.filter((p: any) => p.status === 'Confirmed') || [],
                         category: evt.category_event?.name || 'Lainnya',
                         price: displayPrice,
                         description: evt.pesan_ajakan || evt.desc_full || 'Tidak ada deskripsi tambahan untuk ajakan ini.'
@@ -141,10 +154,9 @@ export default function ExplorePage() {
                     </nav>
 
                     <div className="flex items-center gap-3 flex-shrink-0">
-                        <button className="hidden md:block text-slate-500 hover:text-emerald-600 transition-colors relative p-2">
-                            <i className="fa-regular fa-bell text-xl"></i>
-                            <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></div>
-                        </button>
+                        <div className="hidden md:block">
+                            <NotificationBell />
+                        </div>
                         <div className="w-9 h-9 rounded-full bg-emerald-100 overflow-hidden border-2 border-emerald-500 cursor-pointer">
                             <img src="https://i.pravatar.cc/150?img=32" alt="User" className="w-full h-full object-cover" />
                         </div>
@@ -244,7 +256,7 @@ export default function ExplorePage() {
                     ) : filteredInvites.length > 0 ? (
                         <div className={`grid gap-5 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 lg:grid-cols-2'}`}>
                             {filteredInvites.map((invite) => (
-                                <div key={invite.id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 duration-300 flex flex-col h-full group">
+                                <div key={invite.id} onClick={() => router.push(`/event/detail/${invite.id}`)} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 duration-300 flex flex-col h-full group cursor-pointer">
 
                                     {/* Host Info */}
                                     <div className="flex justify-between items-start mb-4">
@@ -317,9 +329,9 @@ export default function ExplorePage() {
                                             <span className="text-[10px] text-slate-400 font-medium mb-1">Slot Terisi</span>
                                             <div className="flex -space-x-2">
                                                 {/* Confirmed participants */}
-                                                {[...Array(invite.current)].map((_, i) => (
-                                                    <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center z-10 shadow-sm" title="Member (Terisi)">
-                                                        <img src={`https://i.pravatar.cc/150?img=${i + 22}`} className="w-full h-full rounded-full opacity-80" />
+                                                {invite.participants?.map((p: any, i: number) => (
+                                                    <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center z-10 shadow-sm" title={p.users?.nama_lengkap || "Member (Terisi)"}>
+                                                        <img src={p.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${i + 22}`} className="w-full h-full rounded-full opacity-80 object-cover" />
                                                     </div>
                                                 ))}
                                                 {/* Empty slots if applicable */}
@@ -336,7 +348,7 @@ export default function ExplorePage() {
                                             </div>
                                         </div>
 
-                                        <button className="bg-slate-800 hover:bg-emerald-500 text-white text-sm font-semibold py-2.5 px-5 rounded-xl transition-colors active:scale-95 shadow-md shadow-slate-200 hover:shadow-emerald-200">
+                                        <button onClick={(e) => { e.stopPropagation(); router.push(`/event/join/${invite.id}`); }} className="bg-slate-800 hover:bg-emerald-500 text-white text-sm font-semibold py-2.5 px-5 rounded-xl transition-colors active:scale-95 shadow-md shadow-slate-200 hover:shadow-emerald-200">
                                             Join Bareng
                                         </button>
                                     </div>
@@ -368,6 +380,8 @@ export default function ExplorePage() {
                         <i className="fa-solid fa-plus text-xl"></i>
                     </a>
                 </div>
+
+                <NotificationBell isMobile={true} />
 
                 <a href="/pesan" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors relative">
                     <div className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></div>

@@ -21,7 +21,6 @@ interface UserProfile {
 interface User {
   id: string;
   nama_lengkap: string;
-  email: string;
   profile: UserProfile | null;
 }
 
@@ -96,7 +95,6 @@ export default function EventDetail({
           users (
             id,
             nama_lengkap,
-            email,
             profile (
               profile_url_imagekit,
               bio,
@@ -391,14 +389,17 @@ export default function EventDetail({
           <div className="space-y-6">
             
             {/* Host Profile Info */}
-            <Link
-              href={event.users?.id ? `/user/profile/${event.users.id}` : '#'}
+            <div
+              onClick={() => {
+                if (event.users?.id) {
+                  router.push(`/user/profile/${event.users.id}`);
+                }
+              }}
               className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center hover:border-emerald-200 hover:shadow-md transition-all duration-200 group cursor-pointer block"
             >
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-4">Penyelenggara / Host</span>
               <img src={organizerAvatar} alt={event.users?.nama_lengkap} className="w-20 h-20 rounded-full object-cover border-4 border-emerald-50 mb-3 shadow-sm group-hover:border-emerald-200 transition-all" />
-              <h4 className="text-base font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{event.users?.nama_lengkap}</h4>
-              <p className="text-xs text-slate-400 font-medium mb-3">{event.users?.email}</p>
+              <h4 className="text-base font-bold text-slate-800 mb-3 group-hover:text-emerald-700 transition-colors">{event.users?.nama_lengkap}</h4>
               {event.users?.profile?.bio && (
                 <p className="text-xs text-slate-500 italic px-2 leading-relaxed mb-4">
                   "{event.users.profile.bio}"
@@ -436,7 +437,7 @@ export default function EventDetail({
                 <i className="fa-solid fa-user text-[10px]"></i>
                 Lihat Profil
               </span>
-            </Link>
+            </div>
 
             {/* ACTION CARD PANEL */}
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function HomeClient() {
   const router = useRouter();
@@ -39,11 +40,20 @@ export default function HomeClient() {
               name
             ),
             users (
-              nama_lengkap
+              nama_lengkap,
+              profile (
+                profile_url_imagekit
+              )
             ),
             event_participants (
               id,
-              status
+              status,
+              users (
+                nama_lengkap,
+                profile (
+                  profile_url_imagekit
+                )
+              )
             )
           `)
           .eq('status', 'Publish')
@@ -98,10 +108,9 @@ export default function HomeClient() {
           </nav>
 
           <div className="flex items-center gap-3 flex-shrink-0">
-            <button className="hidden md:block text-slate-500 hover:text-emerald-600 transition-colors relative p-2">
-              <i className="fa-regular fa-bell text-xl"></i>
-              <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></div>
-            </button>
+            <div className="hidden md:block">
+              <NotificationBell />
+            </div>
             <div className="w-9 h-9 rounded-full bg-emerald-100 overflow-hidden border-2 border-emerald-500 cursor-pointer shadow-sm">
               <img src="https://i.pravatar.cc/150?img=32" alt="User" className="w-full h-full object-cover" />
             </div>
@@ -195,6 +204,7 @@ export default function HomeClient() {
             ) : events.length > 0 ? (
               events.map((invite, index) => {
                 const hostName = invite.users?.nama_lengkap || 'Penyelenggara';
+                const hostAvatar = invite.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${(index % 70) + 1}`;
                 const categoryName = invite.category_event?.name || 'Lainnya';
                 
                 const confirmedCount = invite.event_participants?.filter((p: any) => p.status === 'Confirmed').length || 0;
@@ -218,7 +228,7 @@ export default function HomeClient() {
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <img src={`https://i.pravatar.cc/150?img=${(index % 70) + 1}`} alt={hostName} className="w-11 h-11 rounded-full object-cover border-2 border-emerald-50" />
+                          <img src={hostAvatar} alt={hostName} className="w-11 h-11 rounded-full object-cover border-2 border-emerald-50" />
                           <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
                         </div>
                         <div>
@@ -287,9 +297,9 @@ export default function HomeClient() {
                         <span className="text-[10px] text-slate-400 font-medium mb-1">Slot Terisi</span>
                         <div className="flex -space-x-2">
                           {/* Render confirmed participants */}
-                          {[...Array(confirmedCount)].map((_, i) => (
-                            <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center z-10 shadow-sm" title="Member (Terisi)">
-                              <img src={`https://i.pravatar.cc/150?img=${i + 22}`} className="w-full h-full rounded-full opacity-80" />
+                          {invite.event_participants?.filter((p: any) => p.status === 'Confirmed').map((p: any, i: number) => (
+                            <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center z-10 shadow-sm" title={p.users?.nama_lengkap || "Member (Terisi)"}>
+                              <img src={p.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${i + 22}`} className="w-full h-full rounded-full opacity-80 object-cover" />
                             </div>
                           ))}
                           {/* Empty slots if max_participants > 0 */}
@@ -356,6 +366,8 @@ export default function HomeClient() {
           </a>
         </div>
 
+        <NotificationBell isMobile={true} />
+        
         <a href="/pesan" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors relative">
           <div className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
           <i className="fa-solid fa-message text-xl mb-1"></i>
