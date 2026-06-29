@@ -1,14 +1,60 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Register() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        // Client side validation
+        if (password !== confirmPassword) {
+            setError('Konfirmasi kata sandi tidak cocok.');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Kata sandi harus minimal 6 karakter.');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, email, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Terjadi kesalahan saat mendaftar.');
+            }
+
+            // Redirect to home page
+            router.push('/');
+            router.refresh();
+        } catch (err: any) {
+            setError(err.message || 'Koneksi ke server gagal.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 font-poppins flex">
@@ -82,8 +128,14 @@ export default function Register() {
                         <p className="text-slate-500 text-sm">Lengkapi form di bawah untuk mendaftar.</p>
                     </div>
 
-                    { }
-                    <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
+                    {error && (
+                        <div className="mb-5 p-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-sm flex items-center gap-2">
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                            <span>{error}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-5">
 
                         {/* Name Field */}
                         <div>
@@ -174,9 +226,17 @@ export default function Register() {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-4 px-4 rounded-2xl shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all active:scale-[0.98] mt-2"
+                            disabled={loading}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-400 text-white font-semibold py-4 px-4 rounded-2xl shadow-lg shadow-emerald-200 hover:shadow-emerald-300 transition-all active:scale-[0.98] mt-2 flex items-center justify-center gap-2"
                         >
-                            Daftar Sekarang
+                            {loading ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch animate-spin"></i>
+                                    Memproses...
+                                </>
+                            ) : (
+                                'Daftar Sekarang'
+                            )}
                         </button>
                     </form>
 

@@ -1,11 +1,45 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Login() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Terjadi kesalahan saat masuk.');
+            }
+
+            // Redirect to home page
+            router.push('/');
+            router.refresh();
+        } catch (err: any) {
+            setError(err.message || 'Koneksi ke server gagal.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 font-poppins flex">
@@ -81,8 +115,14 @@ export default function Login() {
                         <p className="text-slate-500 text-sm">Masukkan email dan password untuk masuk ke akunmu.</p>
                     </div>
 
-                    { }
-                    <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-sm flex items-center gap-2">
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                            <span>{error}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
 
                         {/* Email Field */}
                         <div>
@@ -143,9 +183,17 @@ export default function Login() {
                         {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full bg-slate-800 hover:bg-emerald-500 text-white font-semibold py-4 px-4 rounded-2xl shadow-lg shadow-slate-200 hover:shadow-emerald-200 transition-all active:scale-[0.98] mt-4"
+                            disabled={loading}
+                            className="w-full bg-slate-800 hover:bg-emerald-500 disabled:bg-slate-400 text-white font-semibold py-4 px-4 rounded-2xl shadow-lg shadow-slate-200 hover:shadow-emerald-200 transition-all active:scale-[0.98] mt-4 flex items-center justify-center gap-2"
                         >
-                            Masuk Sekarang
+                            {loading ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch animate-spin"></i>
+                                    Memproses...
+                                </>
+                            ) : (
+                                'Masuk Sekarang'
+                            )}
                         </button>
                     </form>
 

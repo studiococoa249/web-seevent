@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
-export default function App() {
+export default function ExplorePage() {
     const [activeCategory, setActiveCategory] = useState('Semua');
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState('grid'); // 'grid' atau 'list'
+    
+    const [invites, setInvites] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // Data Dummy untuk kategori
+    // Data Dummy untuk kategori UI icons lookup
     const categories = [
         { name: 'Semua', icon: 'fa-layer-group' },
         { name: 'Konser', icon: 'fa-music' },
@@ -19,109 +23,81 @@ export default function App() {
         { name: 'Trip', icon: 'fa-plane' },
     ];
 
-    // Data Dummy untuk ajakan (invites)
-    const invites = [
-        {
-            id: 1,
-            host: 'Arka',
-            hostAge: 23,
-            hostAvatar: 'https://i.pravatar.cc/150?img=11',
-            eventName: 'Konser Dewa 19 - Tour',
-            location: 'Stadion Utama GBK, Jakarta',
-            date: 'Sabtu, 24 Agu 2026',
-            needs: 2,
-            current: 1,
-            category: 'Konser',
-            price: 'Rp 450.000',
-            description: 'Cari teman bareng nih, tiket udah aman di Tribune B. Biar gak awkward nonton sendiri!',
-        },
-        {
-            id: 2,
-            host: 'Dina',
-            hostAge: 21,
-            hostAvatar: 'https://i.pravatar.cc/150?img=5',
-            eventName: 'Museum Macan Exhibition',
-            location: 'AKR Tower, Jakarta',
-            date: 'Minggu, 25 Agu 2026',
-            needs: 1,
-            current: 1,
-            category: 'Pameran',
-            price: 'Gratis / Bayar Sendiri',
-            description: 'Pengen foto-foto estetik tapi gak ada yang fotoin wkwk. Yuk mutualan dan berangkat bareng.',
-        },
-        {
-            id: 3,
-            host: 'Kevin',
-            hostAge: 25,
-            hostAvatar: 'https://i.pravatar.cc/150?img=15',
-            eventName: 'Fun Futsal Akhir Pekan',
-            location: 'Champion Futsal, Bandung',
-            date: 'Jumat, 23 Agu 2026',
-            needs: 4,
-            current: 6,
-            category: 'Olahraga',
-            price: 'Patungan Rp 35k',
-            description: 'Kurang 4 orang lagi nih buat patungan bayar lapangan. Skill bebas yang penting keringetan!',
-        },
-        {
-            id: 4,
-            host: 'Siska',
-            hostAge: 24,
-            hostAvatar: 'https://i.pravatar.cc/150?img=9',
-            eventName: 'Workshop Keramik & Pottery',
-            location: 'Tanah Liat Studio, Jogja',
-            date: 'Sabtu, 31 Agu 2026',
-            needs: 1,
-            current: 1,
-            category: 'Workshop',
-            price: 'Rp 150.000',
-            description: 'Ada promo buy 1 get 1 buat workshop keramik bulan ini. Cari temen patungan aja biar lebih hemat!',
-        },
-        {
-            id: 5,
-            host: 'Reza',
-            hostAge: 22,
-            hostAvatar: 'https://i.pravatar.cc/150?img=59',
-            eventName: 'Mabar MLBB M-Series',
-            location: 'Discord / Warkop Berkah, Depok',
-            date: 'Malam ini, 20:00 WIB',
-            needs: 2,
-            current: 3,
-            category: 'E-Sports',
-            price: 'Bebas',
-            description: 'Kurang Roamer sama Jungler nih buat push Mythic. Mic on, anti toxic toxic club. Yuk gas!',
-        },
-        {
-            id: 6,
-            host: 'Budi',
-            hostAge: 27,
-            hostAvatar: 'https://i.pravatar.cc/150?img=68',
-            eventName: 'CFD Sudirman',
-            location: 'Bunderan HI, Jakarta',
-            date: 'Minggu, 1 Sep 2026',
-            needs: 3,
-            current: 2,
-            category: 'Olahraga',
-            price: 'Gratis',
-            description: 'Lari pagi pelan-pelan aja pace 7-8. Sekalian hunting sarapan bubur ayam di sabang.',
-        },
-        {
-            id: 7,
-            host: 'Tia',
-            hostAge: 20,
-            hostAvatar: 'https://i.pravatar.cc/150?img=47',
-            eventName: 'Hunting Jajanan Blok M',
-            location: 'Blok M Square, Jakarta',
-            date: 'Sabtu, 17 Agu 2026',
-            needs: 2,
-            current: 2,
-            category: 'Kuliner',
-            price: 'Bayar Sendiri',
-            description: 'Lagi pengen nyobain gultik sama ngopi di little tokyo. Cari temen cewek aja ya biar seru ngobrolnya!',
-        }
-    ];
+    useEffect(() => {
+        const fetchEvents = async () => {
+            setLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('event')
+                    .select(`
+                        id,
+                        title,
+                        location,
+                        desc_full,
+                        event_date,
+                        max_participants,
+                        image_url_imagekit,
+                        pesan_ajakan,
+                        patungan,
+                        category_event (
+                            name
+                        ),
+                        users (
+                            nama_lengkap
+                        ),
+                        event_participants (
+                            id,
+                            status
+                        )
+                    `)
+                    .eq('status', 'Publish')
+                    .order('event_date', { ascending: true });
 
-    // Filter logika berdasarkan pencarian teks dan kategori
+                if (error) throw error;
+
+                // Format data entries to match the client view template
+                const formatted = (data || []).map((evt: any, index: number) => {
+                    const confirmedCount = evt.event_participants?.filter((p: any) => p.status === 'Confirmed').length || 0;
+                    const needsCount = evt.max_participants > 0 ? Math.max(0, evt.max_participants - confirmedCount) : 0;
+                    const dateStr = new Date(evt.event_date).toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+
+                    const displayPrice = evt.patungan > 0
+                        ? "Patungan " + new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(evt.patungan)
+                        : "Bebas / Gratis";
+
+                    return {
+                        id: evt.id,
+                        host: evt.users?.nama_lengkap || 'Penyelenggara',
+                        hostAge: 20 + (index % 10),
+                        hostAvatar: `https://i.pravatar.cc/150?img=${(index % 70) + 1}`,
+                        eventName: evt.title,
+                        location: evt.location,
+                        date: dateStr,
+                        needs: needsCount,
+                        current: confirmedCount,
+                        category: evt.category_event?.name || 'Lainnya',
+                        price: displayPrice,
+                        description: evt.pesan_ajakan || evt.desc_full || 'Tidak ada deskripsi tambahan untuk ajakan ini.'
+                    };
+                });
+
+                setInvites(formatted);
+            } catch (err) {
+                console.error('Failed to load events for explore:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchEvents();
+    }, []);
+
+    // Filter logic
     const filteredInvites = invites.filter(invite => {
         const matchCategory = activeCategory === 'Semua' || invite.category === activeCategory;
         const matchSearch = invite.eventName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -159,7 +135,6 @@ export default function App() {
                     {/* Desktop Nav Items */}
                     <nav className="hidden md:flex items-center gap-6">
                         <a href="/" className="text-slate-500 hover:text-emerald-600 transition-colors font-medium">Beranda</a>
-                        {/* Active Link */}
                         <a href="/explore" className="text-emerald-600 font-medium">Eksplor</a>
                         <a href="/create" className="text-slate-500 hover:text-emerald-600 transition-colors font-medium">Buat Ajakan</a>
                         <a href="/pesan" className="text-slate-500 hover:text-emerald-600 transition-colors font-medium">Pesan</a>
@@ -261,7 +236,12 @@ export default function App() {
                     </div>
 
                     {/* Render List or Grid based on viewMode */}
-                    {filteredInvites.length > 0 ? (
+                    {loading ? (
+                        <div className="text-center py-20 text-slate-400 flex flex-col items-center justify-center gap-3">
+                            <i className="fa-solid fa-circle-notch animate-spin text-3xl text-emerald-500"></i>
+                            <span className="text-sm font-semibold">Memuat daftar ajakan event...</span>
+                        </div>
+                    ) : filteredInvites.length > 0 ? (
                         <div className={`grid gap-5 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 lg:grid-cols-2'}`}>
                             {filteredInvites.map((invite) => (
                                 <div key={invite.id} className="bg-white rounded-3xl p-5 border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all hover:-translate-y-1 duration-300 flex flex-col h-full group">
@@ -276,12 +256,12 @@ export default function App() {
                                             <div>
                                                 <h3 className="text-sm font-bold text-slate-800">{invite.host}, <span className="font-normal text-slate-500">{invite.hostAge}</span></h3>
                                                 <p className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                                                    Mencari {invite.needs} teman
+                                                    {invite.needs > 0 ? `Mencari ${invite.needs} teman` : 'Kuota Penuh / Bebas'}
                                                 </p>
                                             </div>
                                         </div>
                                         <span className="text-[10px] font-bold px-2.5 py-1 bg-slate-50 text-slate-500 rounded-md border border-slate-100">
-                                            <i className={`fa-solid ${categories.find(c => c.name === invite.category)?.icon} mr-1`}></i>
+                                            <i className={`fa-solid ${categories.find(c => c.name === invite.category)?.icon || 'fa-tag'} mr-1`}></i>
                                             {invite.category}
                                         </span>
                                     </div>
@@ -316,7 +296,7 @@ export default function App() {
                                                     <i className="fa-solid fa-wallet text-xs"></i>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Biaya</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Kapasitas</p>
                                                     <p className="text-xs text-slate-700 font-medium">{invite.price}</p>
                                                 </div>
                                             </div>
@@ -334,20 +314,25 @@ export default function App() {
                                     {/* Action & Status */}
                                     <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-slate-400 font-medium mb-1">Slot Tersedia</span>
+                                            <span className="text-[10px] text-slate-400 font-medium mb-1">Slot Terisi</span>
                                             <div className="flex -space-x-2">
-                                                {/* Fake current members */}
+                                                {/* Confirmed participants */}
                                                 {[...Array(invite.current)].map((_, i) => (
                                                     <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center z-10 shadow-sm" title="Member (Terisi)">
-                                                        <img src={`https://i.pravatar.cc/150?img=${i + 20}`} className="w-full h-full rounded-full opacity-80" />
+                                                        <img src={`https://i.pravatar.cc/150?img=${i + 22}`} className="w-full h-full rounded-full opacity-80" />
                                                     </div>
                                                 ))}
-                                                {/* Empty Slots */}
-                                                {[...Array(invite.needs)].map((_, i) => (
+                                                {/* Empty slots if applicable */}
+                                                {invite.needs > 0 && [...Array(invite.needs)].slice(0, 5).map((_, i) => (
                                                     <div key={`empty-${i}`} className="w-8 h-8 rounded-full bg-slate-50 border-2 border-slate-200 border-dashed flex items-center justify-center z-0" title="Slot Kosong">
                                                         <i className="fa-solid fa-plus text-[10px] text-slate-300"></i>
                                                     </div>
                                                 ))}
+                                                {invite.needs === 0 && (
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center z-0" title="Slot Unlimited">
+                                                        <i className="fa-solid fa-infinity text-[10px] text-emerald-500"></i>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -359,24 +344,11 @@ export default function App() {
                             ))}
                         </div>
                     ) : (
-                        /* Empty State */
-                        <div className="text-center py-24 bg-white rounded-3xl border border-slate-200 border-dashed">
-                            <div className="w-24 h-24 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-5 text-4xl shadow-inner">
-                                <i className="fa-solid fa-face-frown-open"></i>
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-800 mb-2">Yah, belum ada ajakan nih!</h3>
-                            <p className="text-slate-500 text-sm mb-8 max-w-sm mx-auto">
-                                Tidak ada yang mencari teman untuk kategori "<span className="font-semibold">{activeCategory}</span>" atau pencarian "<span className="font-semibold">{searchQuery}</span>".
-                            </p>
-                            <button
-                                onClick={() => { setSearchQuery(''); setActiveCategory('Semua'); }}
-                                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-semibold py-3 px-6 rounded-full transition-all flex items-center justify-center gap-2 mx-auto">
-                                <i className="fa-solid fa-rotate-left"></i> Reset Filter
-                            </button>
+                        <div className="text-center py-16 bg-white border border-slate-100 rounded-3xl text-slate-400 font-semibold text-sm">
+                            Tidak menemukan ajakan event yang sesuai dengan pencarian atau kategori ini.
                         </div>
                     )}
                 </section>
-
             </main>
 
             {/* --- MOBILE BOTTOM NAVIGATION --- */}
@@ -386,17 +358,15 @@ export default function App() {
                     <span className="text-[10px] font-medium">Beranda</span>
                 </a>
 
-                {/* Active Link (Eksplor) */}
                 <a href="/explore" className="flex flex-col items-center p-2 text-emerald-500 transition-colors">
                     <i className="fa-solid fa-compass text-xl mb-1"></i>
                     <span className="text-[10px] font-medium">Eksplor</span>
                 </a>
 
-                {/* Floating Action Button (FAB) Style for Create */}
                 <div className="relative -top-5">
-                    <button className="bg-emerald-500 text-white w-14 h-14 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform border-[4px] border-white">
+                    <a href="/create" className="bg-emerald-500 text-white w-14 h-14 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform border-[4px] border-white">
                         <i className="fa-solid fa-plus text-xl"></i>
-                    </button>
+                    </a>
                 </div>
 
                 <a href="/pesan" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors relative">
@@ -409,7 +379,6 @@ export default function App() {
                     <span className="text-[10px] font-medium">Profil</span>
                 </a>
             </div>
-
         </div>
     );
 }
