@@ -1,68 +1,202 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/lib/toast-context';
+
+interface CategoryEvent {
+  name: string;
+  slug: string;
+}
+
+interface Profile {
+  profile_url_imagekit: string | null;
+}
+
+interface User {
+  id: string;
+  nama_lengkap: string;
+  profile: Profile | null;
+}
+
+interface Participant {
+  id: string;
+  status: 'Pending' | 'Confirmed' | 'Declined';
+  users: User | null;
+}
+
+interface DbEvent {
+  id: string;
+  title: string;
+  location: string;
+  event_date: string;
+  max_participants: number;
+  status: 'Draft' | 'Publish' | 'Cancelled' | 'Completed';
+  pesan_ajakan: string | null;
+  patungan: number | null;
+  id_users: string;
+  category_event: CategoryEvent | null;
+  event_participants: Participant[] | null;
+}
+
+interface UiEvent {
+  id: string;
+  title: string;
+  category: string;
+  categoryIcon: string;
+  date: string;
+  time: string;
+  location: string;
+  needs: number;
+  joined: number;
+  status: 'aktif' | 'penuh' | 'selesai' | 'draft';
+  participantAvatars: string[];
+}
 
 export default function App() {
+    const router = useRouter();
+    const { showToast } = useToast();
+    
+    const [checkingAuth, setCheckingAuth] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('aktif'); // 'aktif' atau 'riwayat'
     const [currentPage, setCurrentPage] = useState(1);
+    const [myEvents, setMyEvents] = useState<UiEvent[]>([]);
+    
     const itemsPerPage = 8;
+
+    const getCategoryIcon = (slug: string) => {
+        const lower = (slug || '').toLowerCase();
+        if (lower.includes('konser') || lower.includes('music')) return 'fa-music';
+        if (lower.includes('olahraga') || lower.includes('soccer') || lower.includes('sport') || lower.includes('basket')) return 'fa-basketball';
+        if (lower.includes('game') || lower.includes('esport') || lower.includes('e-sport')) return 'fa-gamepad';
+        if (lower.includes('pameran') || lower.includes('art') || lower.includes('museum') || lower.includes('seni')) return 'fa-palette';
+        if (lower.includes('workshop') || lower.includes('seminar') || lower.includes('class') || lower.includes('belajar')) return 'fa-chalkboard-user';
+        if (lower.includes('kuliner') || lower.includes('makan') || lower.includes('food') || lower.includes('kopi')) return 'fa-utensils';
+        return 'fa-star';
+    };
 
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
         setCurrentPage(1);
     };
 
-    // Dummy data ajakan yang dibuat oleh user (diri sendiri)
-    const baseEvents = [
-        {
-            id: 1,
-            title: 'Main Mini Soccer Malam',
-            category: 'Olahraga',
-            categoryIcon: 'fa-basketball',
-            date: 'Jumat, 28 Jun 2026',
-            time: '19:00 WIB',
-            location: 'Kickoff Arena, Semarang',
-            needs: 5,
-            joined: 3,
-            status: 'aktif', // aktif, penuh, selesai
-        },
-        {
-            id: 2,
-            title: 'Nonton Konser Dewa 19 - VIP',
-            category: 'Konser',
-            categoryIcon: 'fa-music',
-            date: 'Sabtu, 29 Jun 2026',
-            time: '15:00 WIB',
-            location: 'Stadion Diponegoro, Semarang',
-            needs: 2,
-            joined: 2,
-            status: 'penuh',
-        },
-        {
-            id: 3,
-            title: 'Hunting Foto Kota Lama',
-            category: 'Lainnya',
-            categoryIcon: 'fa-star',
-            date: 'Minggu, 15 Jun 2026',
-            time: '16:00 WIB',
-            location: 'Kota Lama, Semarang',
-            needs: 3,
-            joined: 3,
-            status: 'selesai',
-        }
-    ];
+    useEffect(() => {
+        const initPage = async () => {
+            try {
+                // 1. Check if user is authenticated
+                const authRes = await fetch('/api/auth/me');
+                if (!authRes.ok) {
+                    router.push('/auth/login');
+                    return;
+                }
+                const authData = await authRes.json();
+                if (!authData.authenticated || !authData.user) {
+                    router.push('/auth/login');
+                    return;
+                }
 
-    // Generate more items for pagination demonstration
-    const myEvents = Array.from({ length: 24 }).map((_, i) => ({
-        ...baseEvents[i % 3],
-        id: i + 1,
-        title: `${baseEvents[i % 3].title} ${i + 1}`,
-        status: i % 4 === 0 ? 'selesai' : (i % 3 === 0 ? 'penuh' : 'aktif')
-    }));
+                setCheckingAuth(false);
+
+                // 2. Fetch events from database
+                const { data, error } = await supabase
+                    .from('event')
+                    .select(`
+                        id,
+                        title,
+                        location,
+                        event_date,
+                        max_participants,
+                        status,
+                        pesan_ajakan,
+                        patungan,
+                        id_users,
+                        category_event (
+                            name,
+                            slug
+                        ),
+                        event_participants (
+                            id,
+                            status,
+                            users (
+                                id,
+                                nama_lengkap,
+                                profile (
+                                    profile_url_imagekit
+                                )
+                            )
+                        )
+                    `)
+                    .eq('id_users', authData.user.id)
+                    .order('event_date', { ascending: false });
+
+                if (error) throw error;
+
+                // 3. Format database entries to match UI models
+                const formatted: UiEvent[] = (data as unknown as DbEvent[] || []).map((evt: DbEvent) => {
+                    const confirmedParticipants = evt.event_participants?.filter((p: Participant) => p.status === 'Confirmed') || [];
+                    const joinedCount = confirmedParticipants.length;
+                    
+                    const dateObj = new Date(evt.event_date);
+                    const dateStr = dateObj.toLocaleDateString('id-ID', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+                    const timeStr = dateObj.toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) + ' WIB';
+
+                    const avatars = confirmedParticipants.map((p: Participant, idx: number) => {
+                        return p.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${(idx % 70) + 1}`;
+                    });
+
+                    // Determine status for UI
+                    let uiStatus: 'aktif' | 'penuh' | 'selesai' | 'draft' = 'aktif';
+                    if (evt.status === 'Draft') {
+                        uiStatus = 'draft';
+                    } else if (evt.status === 'Cancelled' || evt.status === 'Completed' || dateObj < new Date()) {
+                        uiStatus = 'selesai';
+                    } else if (evt.max_participants > 0 && joinedCount >= evt.max_participants) {
+                        uiStatus = 'penuh';
+                    }
+
+                    return {
+                        id: evt.id,
+                        title: evt.title,
+                        category: evt.category_event?.name || 'Lainnya',
+                        categoryIcon: getCategoryIcon(evt.category_event?.slug || ''),
+                        date: dateStr,
+                        time: timeStr,
+                        location: evt.location,
+                        needs: evt.max_participants,
+                        joined: joinedCount,
+                        status: uiStatus,
+                        participantAvatars: avatars
+                    };
+                });
+
+                setMyEvents(formatted);
+
+            } catch (err: unknown) {
+                console.error('Error fetching user events:', err);
+                const errMsg = err instanceof Error ? err.message : 'Unknown error';
+                showToast('Gagal memuat ajakan saya: ' + errMsg, 'error');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initPage();
+    }, [router, showToast]);
 
     // Filter events based on active tab
     const filteredEvents = myEvents.filter(event => {
-        if (activeTab === 'aktif') return event.status === 'aktif' || event.status === 'penuh';
+        if (activeTab === 'aktif') return event.status === 'aktif' || event.status === 'penuh' || event.status === 'draft';
         return event.status === 'selesai';
     });
 
@@ -77,16 +211,32 @@ export default function App() {
                 return <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">Kuota Penuh</span>;
             case 'selesai':
                 return <span className="bg-slate-200 text-slate-600 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">Selesai</span>;
+            case 'draft':
+                return <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">Draft</span>;
             default:
                 return null;
         }
     };
 
+    if (checkingAuth || loading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-poppins text-slate-600 gap-3">
+                <style>{`
+                    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght=300;400;500;600;700&display=swap');
+                    .font-poppins { font-family: 'Poppins', sans-serif; }
+                `}</style>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+                <i className="fa-solid fa-circle-notch animate-spin text-3xl text-emerald-500"></i>
+                <span className="text-sm font-semibold">Memuat ajakan saya...</span>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 font-poppins text-slate-800 pb-24 md:pb-12">
             {/* Inject Google Fonts & Font Awesome */}
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght=300;400;500;600;700&display=swap');
         .font-poppins { font-family: 'Poppins', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -102,7 +252,10 @@ export default function App() {
                     <h1 className="text-lg font-bold text-slate-800 absolute left-1/2 -translate-x-1/2">
                         Ajakan Saya
                     </h1>
-                    <button className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-slate-100 text-emerald-600 transition-colors active:scale-95">
+                    <button 
+                        onClick={() => router.push('/create')}
+                        className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-slate-100 text-emerald-600 transition-colors active:scale-95"
+                    >
                         <i className="fa-solid fa-plus text-lg"></i>
                     </button>
                 </div>
@@ -124,7 +277,6 @@ export default function App() {
                 </div>
             </header>
 
-            { }
             <main className="max-w-7xl mx-auto px-4 pt-6">
 
                 {displayedEvents.length === 0 ? (
@@ -135,7 +287,10 @@ export default function App() {
                         </div>
                         <h3 className="text-lg font-bold text-slate-700 mb-1">Belum ada ajakan</h3>
                         <p className="text-sm text-slate-500 max-w-[250px] mb-6">Kamu belum memiliki ajakan di kategori ini. Yuk buat sekarang!</p>
-                        <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2.5 px-6 rounded-xl shadow-md shadow-emerald-200 transition-all active:scale-95">
+                        <button 
+                            onClick={() => router.push('/create')}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2.5 px-6 rounded-xl shadow-md shadow-emerald-200 transition-all active:scale-95"
+                        >
                             Buat Ajakan Baru
                         </button>
                     </div>
@@ -155,16 +310,16 @@ export default function App() {
                                 </div>
 
                                 {/* Main Content */}
-                                <h3 className="text-lg font-bold text-slate-800 mb-3">{event.title}</h3>
+                                <h3 className="text-lg font-bold text-slate-800 mb-3 line-clamp-2 h-14">{event.title}</h3>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
+                                <div className="grid grid-cols-1 gap-2 mb-5">
                                     <div className="flex items-center gap-3 text-sm text-slate-600">
                                         <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center flex-shrink-0">
                                             <i className="fa-regular fa-calendar-days"></i>
                                         </div>
                                         <div>
-                                            <p className="font-medium">{event.date}</p>
-                                            <p className="text-xs text-slate-400">{event.time}</p>
+                                            <p className="font-medium text-xs">{event.date}</p>
+                                            <p className="text-[10px] text-slate-400">{event.time}</p>
                                         </div>
                                     </div>
 
@@ -173,8 +328,8 @@ export default function App() {
                                             <i className="fa-solid fa-location-dot"></i>
                                         </div>
                                         <div className="truncate pr-2">
-                                            <p className="font-medium truncate">{event.location}</p>
-                                            <p className="text-xs text-slate-400 truncate">Ketemuan di lokasi</p>
+                                            <p className="font-medium text-xs truncate">{event.location}</p>
+                                            <p className="text-[10px] text-slate-400 truncate">Ketemuan di lokasi</p>
                                         </div>
                                     </div>
                                 </div>
@@ -182,16 +337,17 @@ export default function App() {
                                 {/* Members & Progress */}
                                 <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-100 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-semibold text-slate-500 mb-2">Slot Teman Terisi</p>
+                                        <p className="text-[10px] font-semibold text-slate-500 mb-2">Slot Teman Terisi</p>
                                         <div className="flex -space-x-2">
                                             {/* Render avatars based on joined members */}
-                                            {[...Array(event.joined)].map((_, i) => (
+                                            {event.participantAvatars.map((avatarUrl, i) => (
                                                 <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center overflow-hidden">
-                                                    <img src={`https://i.pravatar.cc/150?img=${i * 10 + event.id}`} alt="member" className="w-full h-full object-cover" />
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={avatarUrl} alt="member" className="w-full h-full object-cover" />
                                                 </div>
                                             ))}
                                             {/* Render empty slots based on needs - joined */}
-                                            {[...Array(event.needs - event.joined)].map((_, i) => (
+                                            {event.needs > 0 && [...Array(Math.min(5, Math.max(0, event.needs - event.joined)))].map((_, i) => (
                                                 <div key={`empty-${i}`} className="w-8 h-8 rounded-full bg-white border-2 border-slate-200 border-dashed flex items-center justify-center">
                                                     <i className="fa-solid fa-user-plus text-[10px] text-slate-300"></i>
                                                 </div>
@@ -200,17 +356,29 @@ export default function App() {
                                     </div>
                                     <div className="text-right">
                                         <span className="text-2xl font-bold text-slate-800">{event.joined}</span>
-                                        <span className="text-sm font-semibold text-slate-400">/{event.needs}</span>
-                                        <p className="text-[10px] text-slate-400 mt-1">Orang</p>
+                                        {event.needs > 0 ? (
+                                            <>
+                                                <span className="text-sm font-semibold text-slate-400">/{event.needs}</span>
+                                                <p className="text-[10px] text-slate-400 mt-1">Orang</p>
+                                            </>
+                                        ) : (
+                                            <p className="text-[10px] text-slate-400 mt-1">Peserta (Bebas)</p>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-3 pt-2">
-                                    <button className="flex-1 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-semibold py-2.5 rounded-xl transition-all text-sm flex justify-center items-center gap-2">
+                                    <button 
+                                        onClick={() => showToast('Untuk mengubah detail ajakan ini, silakan hubungi admin atau kelola pendaftaran peserta pada detail event.', 'info')}
+                                        className="flex-1 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-semibold py-2.5 rounded-xl transition-all text-sm flex justify-center items-center gap-2"
+                                    >
                                         <i className="fa-regular fa-pen-to-square"></i> Edit
                                     </button>
-                                    <button className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-xl transition-all shadow-md text-sm flex justify-center items-center gap-2">
+                                    <button 
+                                        onClick={() => router.push(`/event/detail/${event.id}`)}
+                                        className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2.5 rounded-xl transition-all shadow-md text-sm flex justify-center items-center gap-2"
+                                    >
                                         Kelola <i className="fa-solid fa-arrow-right"></i>
                                     </button>
                                 </div>
@@ -250,33 +418,35 @@ export default function App() {
                 )}
             </main>
 
-            { }
             {/* MOBILE STICKY BOTTOM NAVIGATION */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-between items-center shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-50">
-                <a href="#" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
+                <Link href="/" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
                     <i className="fa-solid fa-house text-xl mb-1"></i>
                     <span className="text-[10px] font-medium">Beranda</span>
-                </a>
-                <a href="#" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
+                </Link>
+                <Link href="/explore" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
                     <i className="fa-solid fa-compass text-xl mb-1"></i>
                     <span className="text-[10px] font-medium">Eksplor</span>
-                </a>
+                </Link>
 
                 {/* Floating Action Button */}
                 <div className="relative -top-5">
-                    <button className="bg-emerald-500 text-white w-12 h-12 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform">
+                    <button 
+                        onClick={() => router.push('/create')}
+                        className="bg-emerald-500 text-white w-12 h-12 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform"
+                    >
                         <i className="fa-solid fa-plus text-xl"></i>
                     </button>
                 </div>
 
-                <a href="#" className="flex flex-col items-center p-2 text-emerald-500 transition-colors relative">
+                <Link href="/user/event/all" className="flex flex-col items-center p-2 text-emerald-500 transition-colors relative">
                     <i className="fa-solid fa-clipboard-list text-xl mb-1"></i>
                     <span className="text-[10px] font-medium">Ajakan</span>
-                </a>
-                <a href="#" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
+                </Link>
+                <Link href="/profil" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
                     <i className="fa-solid fa-user text-xl mb-1"></i>
                     <span className="text-[10px] font-medium">Profil</span>
-                </a>
+                </Link>
             </div>
 
         </div>

@@ -47,13 +47,11 @@ export default function JoinEvent({
         // 1. Verify user authentication session
         const authRes = await fetch('/api/auth/me');
         if (!authRes.ok) {
-          showToast('Silakan masuk terlebih dahulu untuk bergabung ke event.', 'warning');
           router.push('/auth/login');
           return;
         }
         const authData = await authRes.json();
         if (!authData.authenticated) {
-          showToast('Silakan masuk terlebih dahulu untuk bergabung ke event.', 'warning');
           router.push('/auth/login');
           return;
         }

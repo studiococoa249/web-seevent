@@ -391,10 +391,13 @@ export default function EventDetail({
           <div className="space-y-6">
             
             {/* Host Profile Info */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
+            <Link
+              href={event.users?.id ? `/user/profile/${event.users.id}` : '#'}
+              className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center hover:border-emerald-200 hover:shadow-md transition-all duration-200 group cursor-pointer block"
+            >
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-4">Penyelenggara / Host</span>
-              <img src={organizerAvatar} alt={event.users?.nama_lengkap} className="w-20 h-20 rounded-full object-cover border-4 border-emerald-50 mb-3 shadow-sm" />
-              <h4 className="text-base font-bold text-slate-800 mb-1">{event.users?.nama_lengkap}</h4>
+              <img src={organizerAvatar} alt={event.users?.nama_lengkap} className="w-20 h-20 rounded-full object-cover border-4 border-emerald-50 mb-3 shadow-sm group-hover:border-emerald-200 transition-all" />
+              <h4 className="text-base font-bold text-slate-800 mb-1 group-hover:text-emerald-700 transition-colors">{event.users?.nama_lengkap}</h4>
               <p className="text-xs text-slate-400 font-medium mb-3">{event.users?.email}</p>
               {event.users?.profile?.bio && (
                 <p className="text-xs text-slate-500 italic px-2 leading-relaxed mb-4">
@@ -403,19 +406,37 @@ export default function EventDetail({
               )}
               
               {/* Host Social Media */}
-              <div className="flex gap-2.5">
+              <div className="flex gap-2.5 mb-4">
                 {event.users?.profile?.instagram_url && (
-                  <a href={event.users.profile.instagram_url} target="_blank" className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-sm transition-colors shadow-sm">
+                  <a
+                    href={event.users.profile.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-sm transition-colors shadow-sm"
+                  >
                     <i className="fa-brands fa-instagram"></i>
                   </a>
                 )}
                 {event.users?.profile?.tiktok_url && (
-                  <a href={event.users.profile.tiktok_url} target="_blank" className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center text-sm transition-colors shadow-sm">
+                  <a
+                    href={event.users.profile.tiktok_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center text-sm transition-colors shadow-sm"
+                  >
                     <i className="fa-brands fa-tiktok"></i>
                   </a>
                 )}
               </div>
-            </div>
+
+              {/* View Profile CTA */}
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 group-hover:text-emerald-700 bg-emerald-50 group-hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-all">
+                <i className="fa-solid fa-user text-[10px]"></i>
+                Lihat Profil
+              </span>
+            </Link>
 
             {/* ACTION CARD PANEL */}
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">

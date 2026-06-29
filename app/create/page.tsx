@@ -38,13 +38,11 @@ export default function App() {
                 // 1. Check if user is authenticated
                 const authRes = await fetch('/api/auth/me');
                 if (!authRes.ok) {
-                    showToast('Silakan masuk terlebih dahulu untuk membuat ajakan.', 'warning');
                     router.push('/auth/login');
                     return;
                 }
                 const authData = await authRes.json();
                 if (!authData.authenticated) {
-                    showToast('Silakan masuk terlebih dahulu untuk membuat ajakan.', 'warning');
                     router.push('/auth/login');
                     return;
                 }
