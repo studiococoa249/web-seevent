@@ -135,4 +135,98 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Sesi berakhir atau Anda belum login. Silakan masuk terlebih dahulu.' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      id,
+      title,
+      id_category_event,
+      location,
+      event_date,
+      max_participants,
+      image_url_imagekit,
+      pesan_ajakan,
+      patungan,
+      desc_full,
+    } = body;
+
+    if (!id || !title || !location || !event_date) {
+      return NextResponse.json(
+        { error: 'ID event, nama acara, lokasi, dan tanggal kumpul/acara wajib diisi.' },
+        { status: 400 }
+      );
+    }
+
+    // Check ownership of the event
+    const { data: event, error: fetchError } = await supabase
+      .from('event')
+      .select('id, id_users')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event tidak ditemukan.' }, { status: 404 });
+    }
+
+    if (event.id_users !== session.userId) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki hak akses untuk mengubah event ini.' },
+        { status: 403 }
+      );
+    }
+
+    // Update payload
+    const updatePayload: any = {
+      id_category_event: id_category_event ? parseInt(id_category_event) : null,
+      title: title.trim(),
+      location: location.trim(),
+      desc_full: desc_full || '',
+      event_date: new Date(event_date).toISOString(),
+      max_participants: Math.max(0, parseInt(max_participants || '0')),
+      image_url_imagekit: image_url_imagekit || null,
+      pesan_ajakan: pesan_ajakan || '',
+      patungan: patungan ? parseFloat(patungan) : null,
+      update_at: new Date().toISOString(),
+    };
+
+    const { data: updatedEvent, error: updateError } = await supabase
+      .from('event')
+      .update(updatePayload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      event: updatedEvent,
+      message: 'Ajakan event berhasil diperbarui!',
+    });
+  } catch (error: any) {
+    console.error('Event update API error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Terjadi kesalahan sistem saat memperbarui event.' },
+      { status: 500 }
+    );
+  }
+}
+
 export const dynamic = 'force-dynamic';

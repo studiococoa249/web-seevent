@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getAvatarPlaceholder } from '@/lib/avatar';
 
 export default function NotificationBell({ isMobile = false }: { isMobile?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,11 +11,16 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let isFirstLoad = true;
     const fetchNotifications = async () => {
-      setLoading(true);
+      if (isFirstLoad) {
+        setLoading(true);
+      }
       try {
-        const { data: authData } = await supabase.auth.getUser();
-        if (!authData.user) return;
+        const authRes = await fetch('/api/auth/me');
+        if (!authRes.ok) return;
+        const authData = await authRes.json();
+        if (!authData.authenticated || !authData.user?.id) return;
         const userId = authData.user.id;
 
         // Fetch events created by the current user
@@ -30,7 +36,7 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
           // Fetch users who want to join my events
           const { data: pending } = await supabase
             .from('event_participants')
-            .select('id, status, event(title, id), users(nama_lengkap, profile(profile_url_imagekit))')
+            .select('id, status, event(title, id), users(id, nama_lengkap, profile(profile_url_imagekit))')
             .in('id_event', myEventIds)
             .eq('status', 'Pending');
             
@@ -41,7 +47,7 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
               title: 'Ada yang ingin join!',
               message: `${item.users?.nama_lengkap || 'Seseorang'} ingin bergabung ke event "${item.event?.title}"`,
               eventId: item.event?.id,
-              avatar: item.users?.profile?.profile_url_imagekit || 'https://i.pravatar.cc/150'
+              avatar: item.users?.profile?.profile_url_imagekit || getAvatarPlaceholder(item.users?.id, item.users?.nama_lengkap)
             }));
           }
         }
@@ -49,7 +55,7 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
         // Fetch accepted joins for the current user
         const { data: accepted } = await supabase
           .from('event_participants')
-          .select('id, status, event(title, id, users(profile(profile_url_imagekit)))')
+          .select('id, status, event(title, id, users(id, nama_lengkap, profile(profile_url_imagekit)))')
           .eq('id_users', userId)
           .eq('status', 'Confirmed');
 
@@ -61,24 +67,31 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
             title: 'Request join diterima!',
             message: `Permintaanmu untuk bergabung ke event "${item.event?.title}" telah disetujui.`,
             eventId: item.event?.id,
-            avatar: item.event?.users?.profile?.profile_url_imagekit || 'https://i.pravatar.cc/150?img=11'
+            avatar: item.event?.users?.profile?.profile_url_imagekit || getAvatarPlaceholder(item.event?.users?.id, item.event?.users?.nama_lengkap)
           }));
         }
 
         // Combine and limit to 10 notifications
         const combined = [...pendingJoins, ...acceptedJoins].slice(0, 10);
-        setNotifications(combined);
+        
+        // Filter out cleared notifications
+        const clearedIds = getClearedIds();
+        const activeCombined = combined.filter(item => !clearedIds.includes(item.id));
+        setNotifications(activeCombined);
       } catch (err) {
         console.error('Error fetching notifications', err);
       } finally {
-        setLoading(false);
+        if (isFirstLoad) {
+          setLoading(false);
+          isFirstLoad = false;
+        }
       }
     };
 
     fetchNotifications();
 
-    // Setup interval to poll occasionally (every 1 minute)
-    const interval = setInterval(fetchNotifications, 60000);
+    // Setup interval to poll occasionally (every 15 seconds)
+    const interval = setInterval(fetchNotifications, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -92,6 +105,43 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Load cleared notification IDs safely
+  const getClearedIds = (): string[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const clearedIdsStr = localStorage.getItem('cleared_notifications');
+      return clearedIdsStr ? JSON.parse(clearedIdsStr) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const handleClearAll = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const idsToClear = notifications.map(n => n.id);
+      const clearedIds = getClearedIds();
+      const updatedCleared = Array.from(new Set([...clearedIds, ...idsToClear]));
+      localStorage.setItem('cleared_notifications', JSON.stringify(updatedCleared));
+      setNotifications([]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleNotificationClick = (notifId: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const clearedIds = getClearedIds();
+      if (!clearedIds.includes(notifId)) {
+        const updatedCleared = [...clearedIds, notifId];
+        localStorage.setItem('cleared_notifications', JSON.stringify(updatedCleared));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const unreadCount = notifications.length; // Currently assuming all are unread
 
@@ -139,7 +189,8 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
                 {notifications.map((notif, idx) => (
                   <a 
                     key={notif.id || idx} 
-                    href={`/event/detail/${notif.eventId}`}
+                    href={notif.type === 'pending_join' ? `/event/accept/${notif.eventId}` : `/event/detail/${notif.eventId}`}
+                    onClick={() => handleNotificationClick(notif.id)}
                     className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors flex gap-3 items-start text-left"
                   >
                     <div className="relative flex-shrink-0 mt-1">
@@ -167,7 +218,7 @@ export default function NotificationBell({ isMobile = false }: { isMobile?: bool
           
           {notifications.length > 0 && (
             <div className="p-3 bg-slate-50 text-center border-t border-slate-100">
-              <button onClick={() => setNotifications([])} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+              <button onClick={handleClearAll} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
                 Bersihkan
               </button>
             </div>

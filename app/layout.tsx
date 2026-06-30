@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
         title: setting.site_name,
         description: "Teman Baru Event Seru",
         icons: {
-          icon: setting.favicon_url_imagekit || "/favicon.ico",
+          icon: setting.favicon_url_imagekit || "/favicon.png",
         },
       };
     }
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Seevent",
     description: "Teman Baru Event Seru",
     icons: {
-      icon: "/favicon.ico",
+      icon: "/favicon.png",
     },
   };
 }

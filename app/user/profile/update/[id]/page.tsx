@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast-context';
+import { getAvatarPlaceholder } from '@/lib/avatar';
 
 interface ProfileForm {
   namaLengkap: string;
@@ -344,7 +345,7 @@ export default function UpdateProfilePage({
                                         <img src={form.profileUrlImagekit} alt="Avatar Preview" className="w-full h-full object-cover" />
                                     ) : (
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        <img src="https://i.pravatar.cc/150?img=33" alt="Avatar Placeholder" className="w-full h-full object-cover" />
+                                        <img src={getAvatarPlaceholder(urlUserId, form.namaLengkap)} alt="Avatar Placeholder" className="w-full h-full object-cover" />
                                     )}
                                 </div>
                                 <label className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-emerald-500 text-white border-2 border-white flex items-center justify-center cursor-pointer shadow-md hover:bg-emerald-600 transition-colors">

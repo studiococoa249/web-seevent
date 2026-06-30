@@ -4,11 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import NotificationBell from '@/components/NotificationBell';
+import { getAvatarPlaceholder } from '@/lib/avatar';
+import MobileNav from '@/components/MobileNav';
 
 export default function HomeClient() {
   const router = useRouter();
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rekomendasi, setRekomendasi] = useState<any[]>([]);
+  const [loadingRekomendasi, setLoadingRekomendasi] = useState(true);
 
   // Data Dummy untuk kategori
   const categories = [
@@ -69,7 +73,26 @@ export default function HomeClient() {
       }
     };
 
+    const fetchRekomendasi = async () => {
+      setLoadingRekomendasi(true);
+      try {
+        const { data, error } = await supabase
+          .from('rekomendasi_event')
+          .select('*')
+          .order('create_at', { ascending: false })
+          .limit(3);
+
+        if (error) throw error;
+        setRekomendasi(data || []);
+      } catch (err) {
+        console.error('Error fetching rekomendasi event:', err);
+      } finally {
+        setLoadingRekomendasi(false);
+      }
+    };
+
     fetchRecentEvents();
+    fetchRekomendasi();
   }, []);
 
   return (
@@ -92,11 +115,8 @@ export default function HomeClient() {
       {/* --- NAVBAR --- */}
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className="bg-emerald-500 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-emerald-200 shadow-md">
-              <i className="fa-solid fa-users text-sm"></i>
-            </div>
-            <span className="text-xl font-bold text-emerald-800 tracking-tight">se <span className="text-emerald-500">event</span></span>
+          <div className="flex items-center cursor-pointer" onClick={() => router.push('/')}>
+            <img src="/logo.png" alt="se event" className="h-8 object-contain" />
           </div>
           
           {/* Desktop Nav Items */}
@@ -183,6 +203,92 @@ export default function HomeClient() {
           </div>
         </section>
 
+        {/* --- RECOMMENDED EVENTS FEED --- */}
+        <section className="mb-12">
+          <div className="flex items-end justify-between mb-6 pb-4 border-b border-slate-200">
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <i className="fa-solid fa-star text-amber-500 text-lg"></i>
+                Rekomendasi Pilihan
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">Temukan event seru rekomendasi editor Seevent!</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loadingRekomendasi ? (
+              <div className="col-span-full text-center py-16 text-slate-400 text-sm flex flex-col items-center justify-center gap-3">
+                <i className="fa-solid fa-circle-notch animate-spin text-2xl text-emerald-500"></i>
+                <span>Memuat rekomendasi event...</span>
+              </div>
+            ) : rekomendasi.length > 0 ? (
+              rekomendasi.map((item, index) => {
+                const detail = item.detail_event || {};
+                const displayPrice = detail.patungan !== undefined
+                  ? detail.patungan > 0
+                    ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(detail.patungan)
+                    : 'Gratis'
+                  : 'Gratis';
+
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => router.push(`/event/rekomendasi/${item.slug}`)}
+                    className="cursor-pointer bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 duration-300 flex flex-col h-full group overflow-hidden"
+                  >
+                    {/* Banner Image */}
+                    <div className="h-44 w-full bg-slate-100 relative overflow-hidden shrink-0">
+                      {item.banner_imagekit_url ? (
+                        <img src={item.banner_imagekit_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-600 flex items-center justify-center">
+                          <i className="fa-solid fa-image text-white/50 text-3xl"></i>
+                        </div>
+                      )}
+                      {/* Price Badge */}
+                      <div className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-md">
+                        {displayPrice}
+                      </div>
+                    </div>
+
+                    <div className="p-5 flex-1 flex flex-col justify-between">
+                      <div>
+                        {/* Host / Category */}
+                        {detail.organizer && (
+                          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full inline-block mb-2.5 uppercase tracking-wider">
+                            By {detail.organizer}
+                          </span>
+                        )}
+                        <h4 className="font-bold text-base text-slate-800 mb-2 group-hover:text-emerald-600 transition-colors line-clamp-1">{item.name}</h4>
+                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mb-4">{item.desc || 'Rekomendasi event pilihan terbaik untuk kamu.'}</p>
+                      </div>
+
+                      <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                        {detail.event_date && (
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                            <i className="fa-regular fa-calendar-days text-slate-400 w-4"></i>
+                            <span>{detail.event_date}</span>
+                          </div>
+                        )}
+                        {detail.location && (
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                            <i className="fa-solid fa-location-dot text-slate-400 w-4"></i>
+                            <span className="truncate">{detail.location}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="col-span-full text-center py-12 bg-white border border-slate-100 rounded-3xl text-slate-400 text-xs font-semibold">
+                Belum ada rekomendasi event saat ini.
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* --- RECENT INVITES FEED --- */}
         <section>
           <div className="flex items-end justify-between mb-6 pb-4 border-b border-slate-200">
@@ -204,7 +310,7 @@ export default function HomeClient() {
             ) : events.length > 0 ? (
               events.map((invite, index) => {
                 const hostName = invite.users?.nama_lengkap || 'Penyelenggara';
-                const hostAvatar = invite.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${(index % 70) + 1}`;
+                const hostAvatar = invite.users?.profile?.profile_url_imagekit || getAvatarPlaceholder(invite.users?.id, hostName);
                 const categoryName = invite.category_event?.name || 'Lainnya';
                 
                 const confirmedCount = invite.event_participants?.filter((p: any) => p.status === 'Confirmed').length || 0;
@@ -299,7 +405,7 @@ export default function HomeClient() {
                           {/* Render confirmed participants */}
                           {invite.event_participants?.filter((p: any) => p.status === 'Confirmed').map((p: any, i: number) => (
                             <div key={i} className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center z-10 shadow-sm" title={p.users?.nama_lengkap || "Member (Terisi)"}>
-                              <img src={p.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${i + 22}`} className="w-full h-full rounded-full opacity-80 object-cover" />
+                              <img src={p.users?.profile?.profile_url_imagekit || getAvatarPlaceholder(p.users?.id, p.users?.nama_lengkap)} className="w-full h-full rounded-full opacity-80 object-cover" />
                             </div>
                           ))}
                           {/* Empty slots if max_participants > 0 */}
@@ -346,38 +452,7 @@ export default function HomeClient() {
 
       </main>
 
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-between items-center shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-50">
-        {/* Active Link (Beranda) */}
-        <a href="/" className="flex flex-col items-center p-2 text-emerald-500 transition-colors">
-          <i className="fa-solid fa-house text-xl mb-1"></i>
-          <span className="text-[10px] font-medium">Beranda</span>
-        </a>
-        
-        <a href="/explore" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-          <i className="fa-solid fa-compass text-xl mb-1"></i>
-          <span className="text-[10px] font-medium">Eksplor</span>
-        </a>
-        
-        {/* Floating Action Button (FAB) Style for Create */}
-        <div className="relative -top-5">
-          <a href="/create" className="bg-emerald-500 text-white w-14 h-14 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform border-[4px] border-white">
-            <i className="fa-solid fa-plus text-xl"></i>
-          </a>
-        </div>
-
-        <NotificationBell isMobile={true} />
-        
-        <a href="/pesan" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors relative">
-          <div className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></div>
-          <i className="fa-solid fa-message text-xl mb-1"></i>
-          <span className="text-[10px] font-medium">Pesan</span>
-        </a>
-        <a href="/profil" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-          <i className="fa-solid fa-user text-xl mb-1"></i>
-          <span className="text-[10px] font-medium">Profil</span>
-        </a>
-      </div>
+      <MobileNav />
 
     </div>
   );

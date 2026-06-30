@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast-context';
+import { getAvatarPlaceholder } from '@/lib/avatar';
+import MobileNav from '@/components/MobileNav';
 
 interface CategoryEvent {
   name: string;
@@ -152,7 +154,7 @@ export default function App() {
                     }) + ' WIB';
 
                     const avatars = confirmedParticipants.map((p: Participant, idx: number) => {
-                        return p.users?.profile?.profile_url_imagekit || `https://i.pravatar.cc/150?img=${(idx % 70) + 1}`;
+                        return p.users?.profile?.profile_url_imagekit || getAvatarPlaceholder(p.users?.id, p.users?.nama_lengkap);
                     });
 
                     // Determine status for UI
@@ -370,7 +372,7 @@ export default function App() {
                                 {/* Actions */}
                                 <div className="flex items-center gap-3 pt-2">
                                     <button 
-                                        onClick={() => showToast('Untuk mengubah detail ajakan ini, silakan hubungi admin atau kelola pendaftaran peserta pada detail event.', 'info')}
+                                        onClick={() => router.push(`/user/event/all/edit/${event.id}`)}
                                         className="flex-1 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-semibold py-2.5 rounded-xl transition-all text-sm flex justify-center items-center gap-2"
                                     >
                                         <i className="fa-regular fa-pen-to-square"></i> Edit
@@ -418,36 +420,7 @@ export default function App() {
                 )}
             </main>
 
-            {/* MOBILE STICKY BOTTOM NAVIGATION */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-between items-center shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-50">
-                <Link href="/" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-                    <i className="fa-solid fa-house text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Beranda</span>
-                </Link>
-                <Link href="/explore" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-                    <i className="fa-solid fa-compass text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Eksplor</span>
-                </Link>
-
-                {/* Floating Action Button */}
-                <div className="relative -top-5">
-                    <button 
-                        onClick={() => router.push('/create')}
-                        className="bg-emerald-500 text-white w-12 h-12 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform"
-                    >
-                        <i className="fa-solid fa-plus text-xl"></i>
-                    </button>
-                </div>
-
-                <Link href="/user/event/all" className="flex flex-col items-center p-2 text-emerald-500 transition-colors relative">
-                    <i className="fa-solid fa-clipboard-list text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Ajakan</span>
-                </Link>
-                <Link href="/profil" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-                    <i className="fa-solid fa-user text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Profil</span>
-                </Link>
-            </div>
+            <MobileNav />
 
         </div>
     );

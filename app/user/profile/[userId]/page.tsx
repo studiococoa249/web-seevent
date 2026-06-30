@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast-context';
+import { getAvatarPlaceholder } from '@/lib/avatar';
 
 interface PublicProfile {
   id: string;
@@ -37,6 +38,11 @@ export default function PublicProfilePage({
   const [hostedEvents, setHostedEvents] = useState<
     { id: string; title: string; event_date: string; image_url_imagekit: string | null }[]
   >([]);
+
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingLoading, setFollowingLoading] = useState(false);
 
   useEffect(() => {
     const fetchPublicProfile = async () => {
@@ -114,6 +120,19 @@ export default function PublicProfilePage({
           .order('event_date', { ascending: false })
           .limit(4);
         setHostedEvents(events || []);
+
+        // Fetch follow details from MongoDB
+        try {
+          const followRes = await fetch(`/api/user/follow?targetUserId=${userId}`);
+          if (followRes.ok) {
+            const followData = await followRes.json();
+            setFollowersCount(followData.followersCount || 0);
+            setFollowingCount(followData.followingCount || 0);
+            setIsFollowing(followData.isFollowing || false);
+          }
+        } catch (e) {
+          console.error("Failed to fetch follow details:", e);
+        }
       } catch (err: unknown) {
         console.error('Error fetching public profile:', err);
         const errMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -125,6 +144,38 @@ export default function PublicProfilePage({
 
     fetchPublicProfile();
   }, [userId, router, showToast]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUserId) {
+      showToast('Silakan login terlebih dahulu untuk mengikuti.', 'warning');
+      router.push('/auth/login');
+      return;
+    }
+    
+    setFollowingLoading(true);
+    try {
+      const res = await fetch('/api/user/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsFollowing(data.isFollowing);
+        setFollowersCount(data.followersCount);
+        setFollowingCount(data.followingCount);
+        showToast(data.message, 'success');
+      } else {
+        showToast(data.error || 'Gagal memproses permintaan.', 'error');
+      }
+    } catch (err) {
+      console.error('Follow action error:', err);
+      showToast('Gagal memproses aksi.', 'error');
+    } finally {
+      setFollowingLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -142,7 +193,7 @@ export default function PublicProfilePage({
 
   if (!profile) return null;
 
-  const avatarUrl = profile.profile_url_imagekit || `https://i.pravatar.cc/150?img=33`;
+  const avatarUrl = profile.profile_url_imagekit || getAvatarPlaceholder(profile.id, profile.nama_lengkap);
   const premiumBg =
     profile.membership === 'Premium'
       ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-500 text-white shadow-amber-200'
@@ -206,7 +257,7 @@ export default function PublicProfilePage({
                 </div>
               </div>
               {/* Edit button — only visible to the profile owner */}
-              {currentUserId === profile.id && (
+              {currentUserId === profile.id ? (
                 <Link
                   href={`/user/profile/update/${profile.id}`}
                   className="inline-flex items-center gap-2 self-center md:self-auto px-4 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-600 hover:text-violet-700 text-xs font-semibold transition-all shadow-sm active:scale-95"
@@ -214,10 +265,34 @@ export default function PublicProfilePage({
                   <i className="fa-solid fa-user-pen"></i>
                   Edit Profil
                 </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={followingLoading}
+                  className={`inline-flex items-center gap-2 self-center md:self-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
+                    isFollowing 
+                      ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200' 
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-100'
+                  }`}
+                >
+                  {followingLoading ? (
+                    <i className="fa-solid fa-circle-notch animate-spin"></i>
+                  ) : isFollowing ? (
+                    <><i className="fa-solid fa-user-minus text-[10px]"></i> Batal Mengikuti</>
+                  ) : (
+                    <><i className="fa-solid fa-user-plus text-[10px]"></i> Ikuti</>
+                  )}
+                </button>
               )}
             </div>
 
-
+            {/* Follow Stats */}
+            <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 justify-center md:justify-start">
+              <span><strong className="text-slate-800 font-bold">{followersCount}</strong> Pengikut</span>
+              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span><strong className="text-slate-800 font-bold">{followingCount}</strong> Mengikuti</span>
+            </div>
 
             {profile.bio ? (
               <p className="text-slate-600 text-sm max-w-lg leading-relaxed italic">

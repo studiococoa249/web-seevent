@@ -48,6 +48,11 @@ export default function SuperadminLayout({
       icon: 'fa-solid fa-calendar-days',
     },
     {
+      name: 'Rekomendasi Event',
+      href: '/superadmin/rekomendasi-event',
+      icon: 'fa-solid fa-thumbs-up',
+    },
+    {
       name: 'Transaksi Pembayaran',
       href: '/superadmin/pembayaran',
       icon: 'fa-solid fa-money-bill-transfer',
@@ -56,6 +61,11 @@ export default function SuperadminLayout({
       name: 'Konfigurasi Tripay',
       href: '/superadmin/tripay',
       icon: 'fa-solid fa-gear',
+    },
+    {
+      name: 'MongoDB Connection',
+      href: '/superadmin/mongodb',
+      icon: 'fa-solid fa-database',
     },
     {
       name: 'Imagekit API',

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/lib/toast-context';
 import { supabase } from '@/lib/supabase';
+import Navbar from '@/components/Navbar';
 
 interface Category {
     id: number;
@@ -25,7 +26,8 @@ export default function App() {
     const [formData, setFormData] = useState({
         id_category_event: '',
         namaEvent: '',
-        deskripsi: '',
+        pesan_ajakan: '',
+        desc_full: '',
         tanggal: '',
         waktu: '',
         lokasi: '',
@@ -180,8 +182,8 @@ export default function App() {
                 location: formData.lokasi,
                 event_date: eventDate,
                 max_participants: formData.kuota,
-                pesan_ajakan: formData.deskripsi,
-                desc_full: formData.deskripsi,
+                pesan_ajakan: formData.pesan_ajakan,
+                desc_full: formData.desc_full,
                 patungan: patunganValue,
                 image_url_imagekit: formData.image_url_imagekit || null,
                 status: 'Publish',
@@ -236,22 +238,7 @@ export default function App() {
             `}</style>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-            {/* --- HEADER --- */}
-            <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
-                <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <button 
-                        type="button" 
-                        onClick={() => router.push('/')}
-                        className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-slate-100 text-slate-600 transition-colors active:scale-95"
-                    >
-                        <i className="fa-solid fa-arrow-left text-lg"></i>
-                    </button>
-                    <h1 className="text-lg font-bold text-slate-800 absolute left-1/2 -translate-x-1/2">
-                        Buat Ajakan
-                    </h1>
-                    <div className="w-10 h-10"></div> {/* Spacer for centering */}
-                </div>
-            </header>
+            <Navbar />
 
             <main className="max-w-3xl mx-auto px-4 pt-6">
                 <div className="mb-8 text-center md:text-left">
@@ -388,16 +375,31 @@ export default function App() {
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-2">Pesan Ajakan <span className="text-red-500">*</span></label>
+                            <label className="block text-xs font-semibold text-slate-600 mb-2">Pesan Ajakan Singkat <span className="text-red-500">*</span></label>
                             <div className="relative">
                                 <textarea
-                                    name="deskripsi"
-                                    value={formData.deskripsi}
+                                    name="pesan_ajakan"
+                                    value={formData.pesan_ajakan}
                                     onChange={handleInputChange}
-                                    rows={3}
+                                    rows={2}
+                                    maxLength={255}
                                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700 resize-none placeholder-slate-400"
-                                    placeholder="Tulis pesan santai buat ngajak. Contoh: Halo, cari temen buat nonton bareng nih, tiket udah aman di tribun utara..."
+                                    placeholder="Tulis ajakan singkat & santai. Contoh: Halo, cari temen buat nonton bareng nih..."
                                     required
+                                ></textarea>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-2">Deskripsi Lengkap / Detail Acara</label>
+                            <div className="relative">
+                                <textarea
+                                    name="desc_full"
+                                    value={formData.desc_full}
+                                    onChange={handleInputChange}
+                                    rows={4}
+                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-slate-700 placeholder-slate-400"
+                                    placeholder="Tulis rincian acara lengkap (opsional), seperti rundown, titik kumpul spesifik, barang bawaan, dresscode, dll..."
                                 ></textarea>
                             </div>
                         </div>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast-context';
+import { getAvatarPlaceholder } from '@/lib/avatar';
+import MobileNav from '@/components/MobileNav';
 
 interface ProfileData {
   id: string;
@@ -34,6 +36,8 @@ export default function ProfilePage() {
     const [createdCount, setCreatedCount] = useState(0);
     const [joinedCount, setJoinedCount] = useState(0);
     const [loggingOut, setLoggingOut] = useState(false);
+    const [followersCount, setFollowersCount] = useState(0);
+    const [followingCount, setFollowingCount] = useState(0);
 
     useEffect(() => {
         const fetchProfileData = async () => {
@@ -105,6 +109,18 @@ export default function ProfilePage() {
                 
                 setUserProfile(completeProfile);
 
+                // Fetch follow details from MongoDB
+                try {
+                  const followRes = await fetch(`/api/user/follow?targetUserId=${completeProfile.id}`);
+                  if (followRes.ok) {
+                    const followData = await followRes.json();
+                    setFollowersCount(followData.followersCount || 0);
+                    setFollowingCount(followData.followingCount || 0);
+                  }
+                } catch (e) {
+                  console.error("Failed to fetch follow details:", e);
+                }
+
             } catch (err: unknown) {
                 console.error('Error fetching user profile:', err);
                 const errMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -153,7 +169,7 @@ export default function ProfilePage() {
 
     if (!userProfile) return null;
 
-    const avatarUrl = userProfile.profile_url_imagekit || `https://i.pravatar.cc/150?img=33`;
+    const avatarUrl = userProfile.profile_url_imagekit || getAvatarPlaceholder(userProfile.id, userProfile.nama_lengkap);
     const premiumBg = userProfile.membership === 'Premium' 
         ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-500 text-white shadow-amber-200'
         : 'bg-slate-200 text-slate-700';
@@ -222,6 +238,13 @@ export default function ProfilePage() {
                         </div>
 
 
+
+                        {/* Follow Stats */}
+                        <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 justify-center md:justify-start">
+                          <span><strong className="text-slate-800 font-bold">{followersCount}</strong> Pengikut</span>
+                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                          <span><strong className="text-slate-800 font-bold">{followingCount}</strong> Mengikuti</span>
+                        </div>
 
                         {userProfile.bio ? (
                             <p className="text-slate-600 text-sm max-w-lg leading-relaxed italic">
@@ -369,36 +392,7 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            {/* MOBILE STICKY BOTTOM NAVIGATION */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-between items-center shadow-[0_-4px_10px_rgba(0,0,0,0.03)] z-50">
-                <Link href="/" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-                    <i className="fa-solid fa-house text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Beranda</span>
-                </Link>
-                <Link href="/explore" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors">
-                    <i className="fa-solid fa-compass text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Eksplor</span>
-                </Link>
-
-                {/* Floating Action Button */}
-                <div className="relative -top-5">
-                    <button 
-                        onClick={() => router.push('/create')}
-                        className="bg-emerald-500 text-white w-12 h-12 rounded-full shadow-lg shadow-emerald-200 flex items-center justify-center active:scale-95 transition-transform"
-                    >
-                        <i className="fa-solid fa-plus text-xl"></i>
-                    </button>
-                </div>
-
-                <Link href="/user/event/all" className="flex flex-col items-center p-2 text-slate-400 hover:text-emerald-500 transition-colors relative">
-                    <i className="fa-solid fa-clipboard-list text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Ajakan</span>
-                </Link>
-                <Link href="/user/profile" className="flex flex-col items-center p-2 text-emerald-500 transition-colors">
-                    <i className="fa-solid fa-user text-xl mb-1"></i>
-                    <span className="text-[10px] font-medium">Profil</span>
-                </Link>
-            </div>
+            <MobileNav />
         </div>
     );
 }

@@ -138,4 +138,100 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  try {
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Sesi berakhir atau Anda belum login. Silakan masuk terlebih dahulu.' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { id, status } = body; // id = event_participants.id, status = 'Confirmed' | 'Declined'
+
+    if (!id || !status || (status !== 'Confirmed' && status !== 'Declined')) {
+      return NextResponse.json(
+        { error: 'ID pendaftaran dan status baru (Confirmed/Declined) wajib disertakan.' },
+        { status: 400 }
+      );
+    }
+
+    // 1. Fetch participant request and host ID
+    const { data: participant, error: fetchError } = await supabase
+      .from('event_participants')
+      .select('id, id_event, status, event(id_users, max_participants, title)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+
+    if (!participant) {
+      return NextResponse.json({ error: 'Data pendaftaran tidak ditemukan.' }, { status: 404 });
+    }
+
+    const eventInfo: any = participant.event;
+    if (!eventInfo) {
+      return NextResponse.json({ error: 'Detail event tidak ditemukan.' }, { status: 404 });
+    }
+
+    // 2. Verify logged in user is the host
+    if (eventInfo.id_users !== session.userId) {
+      return NextResponse.json(
+        { error: 'Anda tidak memiliki hak akses untuk menyetujui pendaftaran ini.' },
+        { status: 403 }
+      );
+    }
+
+    // 3. If confirming, check quota limits
+    if (status === 'Confirmed') {
+      const maxParticipants = eventInfo.max_participants || 0;
+      if (maxParticipants > 0) {
+        const { count, error: countError } = await supabase
+          .from('event_participants')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_event', participant.id_event)
+          .eq('status', 'Confirmed');
+
+        if (countError) {
+          return NextResponse.json({ error: countError.message }, { status: 500 });
+        }
+
+        if (count !== null && count >= maxParticipants) {
+          return NextResponse.json(
+            { error: `Kuota untuk event "${eventInfo.title}" sudah penuh.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // 4. Update status
+    const { error: updateError } = await supabase
+      .from('event_participants')
+      .update({ status, update_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    const actionText = status === 'Confirmed' ? 'disetujui' : 'ditolak';
+    return NextResponse.json({
+      success: true,
+      message: `Permintaan bergabung berhasil ${actionText}!`,
+    });
+  } catch (error: any) {
+    console.error('Accept/Decline participant API error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Terjadi kesalahan sistem saat memproses pendaftaran.' },
+      { status: 500 }
+    );
+  }
+}
+
 export const dynamic = 'force-dynamic';
