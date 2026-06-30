@@ -1,10 +1,15 @@
 import { MetadataRoute } from 'next';
+import { headers } from 'next/headers';
 import { supabase } from '@/lib/supabase';
 
-export const revalidate = 3600; // Cache sitemap for 1 hour
+export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://seevent.id';
+  // Automatically get base URL from request headers
+  const headersList = await headers();
+  const host = headersList.get('host') || 'seevent.id';
+  const protocol = headersList.get('x-forwarded-proto') || 'https';
+  const baseUrl = `${protocol}://${host}`;
 
   // 1. Static Routes
   const staticRoutes = [
