@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import NotificationBell from '@/components/NotificationBell';
+import Navbar from '@/components/Navbar';
 import { getAvatarPlaceholder } from '@/lib/avatar';
 import MobileNav from '@/components/MobileNav';
 
@@ -113,30 +113,7 @@ export default function HomeClient() {
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
       {/* --- NAVBAR --- */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-emerald-100/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center cursor-pointer" onClick={() => router.push('/')}>
-            <img src="/logo.png" alt="se event" className="h-8 object-contain" />
-          </div>
-          
-          {/* Desktop Nav Items */}
-          <nav className="hidden md:flex items-center gap-6">
-            <a href="/" className="text-emerald-600 font-semibold border-b-2 border-emerald-500 py-1">Beranda</a>
-            <a href="/explore" className="text-slate-500 hover:text-emerald-600 transition-colors font-medium py-1">Eksplor</a>
-            <a href="/create" className="text-slate-500 hover:text-emerald-600 transition-colors font-medium py-1">Buat Ajakan</a>
-            <a href="/pesan" className="text-slate-500 hover:text-emerald-600 transition-colors font-medium py-1">Pesan</a>
-          </nav>
-
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="hidden md:block">
-              <NotificationBell />
-            </div>
-            <div className="w-9 h-9 rounded-full bg-emerald-100 overflow-hidden border-2 border-emerald-500 cursor-pointer shadow-sm">
-              <img src="https://i.pravatar.cc/150?img=32" alt="User" className="w-full h-full object-cover" />
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
         
